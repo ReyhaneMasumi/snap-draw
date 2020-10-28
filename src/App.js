@@ -410,7 +410,7 @@ export default function App() {
     // console.log({ ptsWithin });
     // if (ptsWithin.features.length > 0) {
     //   // draw.changeMode("simple_select", {
-    //   //   featureIds: [ptsWithin.features[0].id, ptsWithin.features[1].id] //there is no id vertices
+    //   //   featureIds: [ptsWithin.features[0].id, ptsWithin.features[1].id] //there is no id vertices ---> How is if there is no need to id??
     //   // });
     //   //   let dissolved = dissolve(collection);
     //   //   console.log({ dissolved });
@@ -433,18 +433,22 @@ export default function App() {
   };
 
   const undo = () => {
+    let redoTemp = new Array();
     if (!undoList[undoList.length - 1]) {
       console.log("There is no action to UNDO!");
       return;
     }
     let lastOne = undoList.pop();
     lastOne.forEach((el, i) => {
+      redoTemp.push(draw.get([el.id]));
       draw.add(el);
     });
-    redoList.push(lastOne);
+    console.log({ redoTemp });
+    redoList.push(redoTemp);
   };
 
   const redo = () => {
+    let undoTemp = new Array();
     if (!redoList[redoList.length - 1]) {
       console.log("There is no action to REDO!");
       return;
@@ -452,9 +456,10 @@ export default function App() {
     let latest = redoList.pop();
     console.log({ latest });
     latest.forEach((el, i) => {
+      undoTemp.push(draw.get([el.id]));
       draw.add(el);
     });
-    undoList.push(latest);
+    undoList.push(undoTemp);
   };
 
   useEffect(() => {
