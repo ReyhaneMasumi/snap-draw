@@ -1,30 +1,32 @@
 import {
   geojsonTypes,
   modes,
-  cursors,
+  cursors
 } from "@mapbox/mapbox-gl-draw/src/constants";
 import doubleClickZoom from "@mapbox/mapbox-gl-draw/src/lib/double_click_zoom";
 import DrawPolygon from "@mapbox/mapbox-gl-draw/src/modes/draw_polygon";
 import {
-  addPointToGuides,
-  findGuidesFromFeatures,
+  addPointTovertices,
+  createSnapList,
+  findSnapFeatures,
   getGuideFeature,
   IDS,
   roundLngLatTo1Cm,
   shouldHideGuide,
-  snap,
+  snap
 } from "./snapUtils";
+import { lineString } from "@turf/turf";
 
 const SnapPolygonMode = { ...DrawPolygon };
 
-SnapPolygonMode.onSetup = function ({ snapPx = 10, draw }) {
+SnapPolygonMode.onSetup = function({ draw, snapPx = 10, isSnappy = false }) {
   const polygon = this.newFeature({
     type: geojsonTypes.FEATURE,
     properties: {},
     geometry: {
       type: geojsonTypes.POLYGON,
-      coordinates: [[]],
-    },
+      coordinates: [[]]
+    }
   });
 
   const verticalGuide = this.newFeature(getGuideFeature(IDS.VERTICAL_GUIDE));
@@ -35,30 +37,44 @@ SnapPolygonMode.onSetup = function ({ snapPx = 10, draw }) {
   this.addFeature(polygon);
   this.addFeature(verticalGuide);
   this.addFeature(horizontalGuide);
+
+  const selectedFeatures = draw.getSelected();
   this.clearSelectedFeatures();
   doubleClickZoom.disable(this);
 
+  const [snapList, vertices] = createSnapList(this.map, draw, polygon);
+
   // A dog's breakfast
   const state = {
-    currentVertexPosition: 0,
-    draw,
-    guides: findGuidesFromFeatures(this.map, draw, polygon),
-    horizontalGuide,
     map: this.map,
+    draw,
     polygon,
+    currentVertexPosition: 0,
+    vertices,
+    snapList,
+    selectedFeatures,
     snapPx,
     verticalGuide,
+    horizontalGuide
   };
 
-  this.map.on("moveend", () => {
-    // Update the guide locations after zoom, pan, rotate, or resize
-    state.guides = findGuidesFromFeatures(this.map, draw, polygon);
-  });
+  const moveendCallback = () => {
+    const [snapList, vertices] = createSnapList(this.map, draw, polygon);
+    state.vertices = vertices;
+    state.snapList = snapList;
+  };
+  // for removing listener later on close
+  state["moveendCallback"] = moveendCallback;
+
+  this.map.on("moveend", moveendCallback);
+  // TODO: this (custom) event should fire when new draw features added to map
+  // handling asyncly added features
+  this.map.on("featureChanged", moveendCallback);
 
   return state;
 };
 
-SnapPolygonMode.onClick = function (state) {
+SnapPolygonMode.onClick = function(state) {
   // We save some processing by rounding on click, not mousemove
   const lng = roundLngLatTo1Cm(state.snappedLng);
   const lat = roundLngLatTo1Cm(state.snappedLat);
@@ -68,16 +84,18 @@ SnapPolygonMode.onClick = function (state) {
     const lastVertex =
       state.polygon.coordinates[0][state.currentVertexPosition - 1];
 
+    state.lastVertex = lastVertex;
+
     if (lastVertex[0] === lng && lastVertex[1] === lat) {
       return this.changeMode(modes.SIMPLE_SELECT, {
-        featureIds: [state.polygon.id],
+        featureIds: [state.polygon.id]
       });
     }
   }
 
-  const point = state.map.project({ lng: lng, lat: lat });
+  // const point = state.map.project();
 
-  addPointToGuides(state.guides, point);
+  addPointTovertices(state.map, state.vertices, { lng, lat });
 
   state.polygon.updateCoordinate(`0.${state.currentVertexPosition}`, lng, lat);
 
@@ -86,18 +104,33 @@ SnapPolygonMode.onClick = function (state) {
   state.polygon.updateCoordinate(`0.${state.currentVertexPosition}`, lng, lat);
 };
 
-SnapPolygonMode.onMouseMove = function (state, e) {
+SnapPolygonMode.onMouseMove = function(state, e) {
   const { lng, lat } = snap(state, e);
 
   state.polygon.updateCoordinate(`0.${state.currentVertexPosition}`, lng, lat);
   state.snappedLng = lng;
   state.snappedLat = lat;
 
-  this.updateUIClasses({ mouse: cursors.ADD });
+  if (
+    state.lastVertex &&
+    state.lastVertex[0] === lng &&
+    state.lastVertex[1] === lat
+  ) {
+    this.updateUIClasses({ mouse: cursors.POINTER });
+
+    // cursor options:
+    // ADD: "add"
+    // DRAG: "drag"
+    // MOVE: "move"
+    // NONE: "none"
+    // POINTER: "pointer"
+  } else {
+    this.updateUIClasses({ mouse: cursors.ADD });
+  }
 };
 
 // This is 'extending' DrawPolygon.toDisplayFeatures
-SnapPolygonMode.toDisplayFeatures = function (state, geojson, display) {
+SnapPolygonMode.toDisplayFeatures = function(state, geojson, display) {
   if (shouldHideGuide(state, geojson)) return;
 
   // This relies on the the state of SnapPolygonMode being similar to DrawPolygon
@@ -105,9 +138,12 @@ SnapPolygonMode.toDisplayFeatures = function (state, geojson, display) {
 };
 
 // This is 'extending' DrawPolygon.onStop
-SnapPolygonMode.onStop = function (state) {
+SnapPolygonMode.onStop = function(state) {
   this.deleteFeature(IDS.VERTICAL_GUIDE, { silent: true });
   this.deleteFeature(IDS.HORIZONTAL_GUIDE, { silent: true });
+
+  // remove moveemd callback
+  this.map.off("moveend", state.moveendCallback);
 
   // This relies on the the state of SnapPolygonMode being similar to DrawPolygon
   DrawPolygon.onStop.call(this, state);
