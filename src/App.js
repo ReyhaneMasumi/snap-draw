@@ -432,12 +432,40 @@ export default function App() {
     // }
   };
 
-  const undo = () => {};
+  const undo = () => {
+    if (!undoList[undoList.length - 1]) {
+      console.log("There is no action to UNDO!");
+      return;
+    }
+    let lastOne = undoList.pop();
+    lastOne.forEach((el, i) => {
+      draw.add(el);
+    });
+    redoList.push(lastOne);
+  };
+
+  const redo = () => {
+    if (!redoList[redoList.length - 1]) {
+      console.log("There is no action to REDO!");
+      return;
+    }
+    let latest = redoList.pop();
+    console.log({ latest });
+    latest.forEach((el, i) => {
+      draw.add(el);
+    });
+    undoList.push(latest);
+  };
 
   useEffect(() => {
-    map.on("draw.selectionchange", () => {
+    map.on("draw.modechange", () => {
       let before = draw.getSelected().features;
-      map.on("draw.update", e => {});
+      map.on("draw.update", e => {
+        if (e.features !== before) {
+          if (before !== undoList[undoList.length - 1]) undoList.push(before);
+        }
+        console.log({ undoList });
+      });
     });
   }, [draw]);
 
@@ -561,6 +589,13 @@ export default function App() {
         }}
       >
         undo
+      </button>
+      <button
+        onClick={() => {
+          redo();
+        }}
+      >
+        redo
       </button>
       <div id="map" ref={mapRef} />
     </div>
