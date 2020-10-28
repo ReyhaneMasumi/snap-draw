@@ -389,43 +389,47 @@ export default function App() {
   };
 
   const pinning = () => {
-    let vertices = draw.getSelectedPoints();
-    console.log({ vertices });
-    let searchWithin = draw
-      .getAll()
-      .features.filter(
-        i =>
-          (i.geometry.type === "Polygon") | (i.geometry.type === "MultiPolygon")
-      );
-    console.log({ searchWithin });
-    let collection = featureCollection([...searchWithin], {
-      id: "new"
-    });
-    console.log({ collection });
-    let ptsWithin = pointsWithinPolygon(vertices, collection);
-    console.log({ ptsWithin });
-    if (ptsWithin.features.length > 0) {
-      // draw.changeMode("simple_select", {
-      //   featureIds: [ptsWithin.features[0].id, ptsWithin.features[1].id] //there is no id vertices
-      // });
-      //   let dissolved = dissolve(collection);
-      //   console.log({ dissolved });
-      //   draw.add(dissolved);
-      // let combined = combine(collection);
-      let combined = multiPolygon([
-        searchWithin[0].geometry.coordinates,
-        searchWithin[1].geometry.coordinates
-      ]);
-      draw.delete([searchWithin[0].id, searchWithin[1].id]);
-      console.log({ combined });
-      draw.add(combined);
-      map.on("draw.update", e => {
-        let flattenFeature = flatten(e.features[0]);
-        console.log(flattenFeature);
-        draw.delete([combined.id]);
-        draw.add(flattenFeature);
-      });
-    }
+    let main = draw.getSelected().features;
+    let inter = intersect(main[0], main[1]);
+    console.log({ inter });
+    unionPolygons();
+    // let vertices = draw.getSelectedPoints();
+    // console.log({ vertices });
+    // let searchWithin = draw
+    //   .getAll()
+    //   .features.filter(
+    //     i =>
+    //       (i.geometry.type === "Polygon") | (i.geometry.type === "MultiPolygon")
+    //   );
+    // console.log({ searchWithin });
+    // let collection = featureCollection([...searchWithin], {
+    //   id: "new"
+    // });
+    // console.log({ collection });
+    // let ptsWithin = pointsWithinPolygon(vertices, collection);
+    // console.log({ ptsWithin });
+    // if (ptsWithin.features.length > 0) {
+    //   // draw.changeMode("simple_select", {
+    //   //   featureIds: [ptsWithin.features[0].id, ptsWithin.features[1].id] //there is no id vertices
+    //   // });
+    //   //   let dissolved = dissolve(collection);
+    //   //   console.log({ dissolved });
+    //   //   draw.add(dissolved);
+    //   // let combined = combine(collection);
+    //   let combined = multiPolygon([
+    //     searchWithin[0].geometry.coordinates,
+    //     searchWithin[1].geometry.coordinates
+    //   ]);
+    //   draw.delete([searchWithin[0].id, searchWithin[1].id]);
+    //   console.log({ combined });
+    //   draw.add(combined);
+    //   map.on("draw.update", e => {
+    //     let flattenFeature = flatten(e.features[0]);
+    //     console.log(flattenFeature);
+    //     draw.delete([combined.id]);
+    //     draw.add(flattenFeature);
+    //   });
+    // }
   };
 
   const undo = () => {};
