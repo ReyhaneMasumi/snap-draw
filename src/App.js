@@ -45,6 +45,8 @@ import "./style.css";
 
 let map;
 let draw;
+let undoList = new Array();
+let redoList = new Array();
 export default function App() {
   if (mapboxGl.getRTLTextPluginStatus() === "unavailable")
     mapboxGl.setRTLTextPlugin(
@@ -425,6 +427,19 @@ export default function App() {
     }
   };
 
+  const undo = () => {
+
+  };
+
+  useEffect(() => {
+    map.on('draw.selectionchange', () => {
+      let before = draw.getSelected().features;
+      map.on('draw.update', (e) => {
+
+      })
+    })
+  }, [draw])
+
   return (
     <div className="map-wrapper">
       <button
@@ -538,6 +553,13 @@ export default function App() {
         }}
       >
         pin
+      </button>
+      <button
+        onClick={() => {
+          undo();
+        }}
+      >
+        undo
       </button>
       <div id="map" ref={mapRef} />
     </div>
