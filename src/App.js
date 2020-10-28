@@ -47,6 +47,7 @@ let map;
 let draw;
 let undoList = new Array();
 let redoList = new Array();
+
 export default function App() {
   if (mapboxGl.getRTLTextPluginStatus() === "unavailable")
     mapboxGl.setRTLTextPlugin(
@@ -427,18 +428,14 @@ export default function App() {
     }
   };
 
-  const undo = () => {
-
-  };
+  const undo = () => {};
 
   useEffect(() => {
-    map.on('draw.selectionchange', () => {
+    map.on("draw.selectionchange", () => {
       let before = draw.getSelected().features;
-      map.on('draw.update', (e) => {
-
-      })
-    })
-  }, [draw])
+      map.on("draw.update", e => {});
+    });
+  }, [draw]);
 
   return (
     <div className="map-wrapper">
