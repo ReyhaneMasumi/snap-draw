@@ -150,15 +150,31 @@ export const createSnapList = (map, draw, currentFeature) => {
  * @param snapPx
  * @returns {{vertical: number | undefined, horizontal: number | undefined}}
  */
-const getNearbyvertices = (map, vertices, point, snapPx) => {
-  const verticesPoints = vertices.map(v => map.project(v));
-  const nearbyVerticalGuide = verticesPoints
-    .map(p => p.x)
-    .find(px => Math.abs(px - point.x) < snapPx);
+const getNearbyvertices = (map, vertices, point, coords, snapPx) => {
+  const verticals = [];
+  const horizontals = [];
 
-  const nearbyHorizontalGuide = verticesPoints
-    .map(p => p.y)
-    .find(py => Math.abs(py - point.y) < snapPx);
+  vertices.forEach(vertex => {
+    verticals.push(vertex[0]);
+    horizontals.push(vertex[1]);
+  });
+
+  const nearbyVerticalGuide = verticals.find(
+    px => Math.abs(px - coords.lng) < 0.009
+  );
+
+  const nearbyHorizontalGuide = verticals.find(
+    py => Math.abs(py - coords.lat) < 0.009
+  );
+
+  // const verticesPoints = vertices.map((v) => map.project(v));
+  // const nearbyVerticalGuide = verticesPoints
+  //   .map((p) => p.x)
+  //   .find((px) => Math.abs(px - point.x) < snapPx);
+
+  // const nearbyHorizontalGuide = verticesPoints
+  //   .map((p) => p.y)
+  //   .find((py) => Math.abs(py - point.y) < snapPx);
 
   return {
     verticalPx: nearbyVerticalGuide,
@@ -341,6 +357,86 @@ export const snap = (state, e) => {
 
   const minDistance = 15 * metersPerPixel(snapLatLng.lat, state.map.getZoom());
 
+  const showGrid = false;
+  let verticalPx, horizontalPx;
+
+  if (showGrid) {
+    const nearestGuidline = getNearbyvertices(
+      state.map,
+      state.vertices,
+      e.point,
+      e.lngLat,
+      state.snapPx
+    );
+
+    verticalPx = nearestGuidline.verticalPx;
+    horizontalPx = nearestGuidline.horizontalPx;
+
+    if (verticalPx) {
+      // Draw a line from top to bottom
+      // const lngLat = state.map.unproject({ x: verticalPx, y: e.point.y });
+
+      const lngLatTop = { lng: verticalPx, lat: e.lngLat.lat + 10 };
+      const lngLatBottom = { lng: verticalPx, lat: e.lngLat.lat - 10 };
+
+      // const lngLatTop = state.map.unproject({ x: verticalPx, y: 0 });
+      // const lngLatBottom = state.map.unproject({
+      //   x: verticalPx,
+      //   y: window.innerHeight
+      // });
+      // const lngLatPoint = state.map.unproject({ x: verticalPx, y: e.point.y });
+
+      state.verticalGuide.updateCoordinate(0, lngLatTop.lng, lngLatTop.lat);
+      state.verticalGuide.updateCoordinate(
+        1,
+        lngLatBottom.lng,
+        lngLatBottom.lat
+      );
+
+      // lng = lngLat.lng;
+      // lat = e.lngLat.lat;
+      // lng = lngLatPoint.lng;
+      // lat = lngLatPoint.lat;
+    }
+
+    // if (horizontalPx) {
+    //   // Draw a line from left to right
+    //   const lngLatLeft = state.map.unproject({ x: 0, y: horizontalPx });
+    //   const lngLatRight = state.map.unproject({
+    //     x: window.innerWidth,
+    //     y: horizontalPx,
+    //   });
+    //   const lngLatPoint = state.map.unproject({
+    //     x: e.point.x,
+    //     y: horizontalPx,
+    //   });
+
+    //   state.horizontalGuide.updateCoordinate(0, lngLatLeft.lng, lngLatLeft.lat);
+    //   state.horizontalGuide.updateCoordinate(
+    //     1,
+    //     lngLatRight.lng,
+    //     lngLatRight.lat
+    //   );
+
+    //   lng = lngLatPoint.lng;
+    //   lat = lngLatPoint.lat;
+    // }
+
+    // if (verticalPx && horizontalPx) {
+    //   // For rather complicated reasons, we need to explicitly set both so it behaves on a rotated map
+    //   const lngLatPoint = state.map.unproject({
+    //     x: verticalPx,
+    //     y: horizontalPx,
+    //   });
+
+    //   lng = lngLatPoint.lng;
+    //   lat = lngLatPoint.lat;
+    // }
+
+    state.showVerticalSnapLine = !!verticalPx;
+    state.showHorizontalSnapLine = !!horizontalPx;
+  }
+
   if (closestLayer.distance * 1000 < minDistance) {
     // snap the marker
     // marker.setLatLng(snapLatLng);
@@ -363,9 +459,14 @@ export const snap = (state, e) => {
     // if (a.lat !== b.lat || a.lng !== b.lng) {
     //   triggerSnap();
     // }
-  } else if (snapLatLng) {
+  } else if (verticalPx || horizontalPx) {
+    if (verticalPx) {
+      lng = verticalPx;
+    }
+    if (horizontalPx) {
+      lat = horizontalPx;
+    }
     // no more snapping
-    return { lng, lat };
     // if it was previously snapped...
     // ...unsnap
     // this._unsnap(eventInfo);
@@ -375,81 +476,9 @@ export const snap = (state, e) => {
     // // and fire unsnap event
     // eventInfo.marker.fire('pm:unsnap', eventInfo);
     // this._layer.fire('pm:unsnap', eventInfo);
+  } else {
+    return { lng, lat };
   }
-
-  const showGrid = false;
-  if (showGrid) {
-    const { verticalPx, horizontalPx } = getNearbyvertices(
-      state.map,
-      state.vertices,
-      e.point,
-      state.snapPx
-    );
-
-    if (verticalPx) {
-      // Draw a line from top to bottom
-      const lngLat = state.map.unproject({ x: verticalPx, y: e.point.y });
-
-      const lngLatTop = { lng: lngLat.lng, lat: lngLat.lat + 10 };
-      const lngLatBottom = { lng: lngLat.lng, lat: lngLat.lat - 10 };
-
-      // const lngLatTop = state.map.unproject({ x: verticalPx, y: 0 });
-      // const lngLatBottom = state.map.unproject({
-      //   x: verticalPx,
-      //   y: window.innerHeight
-      // });
-      // const lngLatPoint = state.map.unproject({ x: verticalPx, y: e.point.y });
-
-      state.verticalGuide.updateCoordinate(0, lngLatTop.lng, lngLatTop.lat);
-      state.verticalGuide.updateCoordinate(
-        1,
-        lngLatBottom.lng,
-        lngLatBottom.lat
-      );
-
-      lng = lngLat.lng;
-      lat = e.lngLat.lat;
-      // lng = lngLatPoint.lng;
-      // lat = lngLatPoint.lat;
-    }
-
-    if (horizontalPx) {
-      // Draw a line from left to right
-      const lngLatLeft = state.map.unproject({ x: 0, y: horizontalPx });
-      const lngLatRight = state.map.unproject({
-        x: window.innerWidth,
-        y: horizontalPx
-      });
-      const lngLatPoint = state.map.unproject({
-        x: e.point.x,
-        y: horizontalPx
-      });
-
-      state.horizontalGuide.updateCoordinate(0, lngLatLeft.lng, lngLatLeft.lat);
-      state.horizontalGuide.updateCoordinate(
-        1,
-        lngLatRight.lng,
-        lngLatRight.lat
-      );
-
-      lng = lngLatPoint.lng;
-      lat = lngLatPoint.lat;
-    }
-
-    if (verticalPx && horizontalPx) {
-      // For rather complicated reasons, we need to explicitly set both so it behaves on a rotated map
-      const lngLatPoint = state.map.unproject({
-        x: verticalPx,
-        y: horizontalPx
-      });
-
-      lng = lngLatPoint.lng;
-      lat = lngLatPoint.lat;
-    }
-  }
-
-  // state.showVerticalSnapLine = !!verticalPx;
-  // state.showHorizontalSnapLine = !!horizontalPx;
 
   return { lng, lat };
 };

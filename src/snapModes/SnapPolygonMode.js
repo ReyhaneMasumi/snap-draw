@@ -15,7 +15,6 @@ import {
   shouldHideGuide,
   snap
 } from "./snapUtils";
-import { lineString } from "@turf/turf";
 
 const SnapPolygonMode = { ...DrawPolygon };
 
