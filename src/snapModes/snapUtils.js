@@ -72,7 +72,7 @@ export const addPointTovertices = (
   }
 };
 
-const getCurrentViewportBBox = () => {
+export const getCurrentViewportBBox = (map) => {
   const canvas = map.getCanvas(),
     w = canvas.width,
     h = canvas.height,

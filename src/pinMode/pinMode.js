@@ -5,6 +5,8 @@ import {
 } from "@mapbox/mapbox-gl-draw/src/constants";
 import doubleClickZoom from "@mapbox/mapbox-gl-draw/src/lib/double_click_zoom";
 import DrawPolygon from "@mapbox/mapbox-gl-draw/src/modes/draw_polygon";
+import SimpleSelect from "@mapbox/mapbox-gl-draw/src/modes/simple_select";
+
 import {
   addPointTovertices,
   getCurrentViewportBBox,
@@ -15,7 +17,7 @@ import {
   roundLngLatTo1Cm,
   shouldHideGuide,
   snap
-} from "./snapModes/snapUtils";
+} from "../snapModes/snapUtils";
 import {
   coordAll,
   getCoords,
@@ -24,7 +26,8 @@ import {
   booleanPointInPolygon
 } from "@turf/turf";
 
-const pinMode = { ...DrawPolygon };
+const pinMode = { ...SimpleSelect };
+// const pinMode = {};
 
 pinMode.onSetup = function({ draw, snapPx = 10, isSnappy = false }) {
   const selectedFeatures = draw.getSelected();
@@ -35,22 +38,47 @@ pinMode.onSetup = function({ draw, snapPx = 10, isSnappy = false }) {
   const state = {
     map: this.map,
     draw,
-    selectedFeatures
+    selectedFeatures,
+    selectedPointID: null
   };
 
   const getFeaturesVertices = () => {
-    const BBoxPolygon = bboxPolygon(getCurrentViewportBBox().flat());
+    const BBoxPolygon = bboxPolygon(getCurrentViewportBBox(this.map).flat());
     const features = draw.getAll();
     features.features = features.features.filter(feature => {
       return coordAll(feature).some(coord =>
         booleanPointInPolygon(coord, BBoxPolygon)
       );
     });
-    const verices = coordAll(features);
+    const vertices = coordAll(features);
 
+    const _this = this;
+
+    const points = vertices.map(
+      ((vertex, idx) => {
+        // this = _this;
+        return this.newFeature({
+          type: geojsonTypes.FEATURE,
+          properties: { idx },
+          id: idx.toString(),
+          geometry: {
+            type: geojsonTypes.POINT,
+            coordinates: vertex
+          }
+        });
+      }).bind(_this)
+    );
+
+    points.forEach(
+      (point => {
+        // this = _this;
+        return this.addFeature(point);
+      }).bind(_this)
+    );
 
     state.features = features;
-    state.verices = verices;
+    state.vertices = vertices;
+    state.points = points;
   };
 
   getFeaturesVertices();
@@ -66,79 +94,74 @@ pinMode.onSetup = function({ draw, snapPx = 10, isSnappy = false }) {
   return state;
 };
 
-pinMode.onClick = function(state) {
-  // We save some processing by rounding on click, not mousemove
-  const lng = roundLngLatTo1Cm(state.snappedLng);
-  const lat = roundLngLatTo1Cm(state.snappedLat);
+// pinMode.onDrag = function(state, e) {
+//   console.log(e);
+// };
 
-  // End the drawing if this click is on the previous position
-  if (state.currentVertexPosition > 0) {
-    const lastVertex =
-      state.polygon.coordinates[0][state.currentVertexPosition - 1];
+// pinMode.onClick = function(state, e) {
+//   if (!e.featureTarget) {
+//     state.selectedPointID = null;
+//     return;
+//   }
 
-    state.lastVertex = lastVertex;
+//   console.log(e.featureTarget);
 
-    if (lastVertex[0] === lng && lastVertex[1] === lat) {
-      return this.changeMode(modes.SIMPLE_SELECT, {
-        featureIds: [state.polygon.id]
-      });
-    }
+//   state.selectedPointID = e.featureTarget.properties.id;
+//   // this.setSelected(e.featureTarget.properties.id);
+//   SimpleSelect.clickOnFeature.call(this, state, e);
+// };
+
+pinMode.onMouseDown = function(state, e) {
+  if (e.featureTarget) {
+    state.selectedPointID = e.featureTarget.properties.id;
   }
+  SimpleSelect.onMouseUp.call(this, state, e);
+};
 
-  // const point = state.map.project();
-
-  addPointTovertices(state.map, state.vertices, { lng, lat });
-
-  state.polygon.updateCoordinate(`0.${state.currentVertexPosition}`, lng, lat);
-
-  state.currentVertexPosition++;
-
-  state.polygon.updateCoordinate(`0.${state.currentVertexPosition}`, lng, lat);
+pinMode.onMouseUp = function(state, e) {
+  state.selectedPointID = null;
+  SimpleSelect.onMouseUp.call(this, state, e);
 };
 
 pinMode.onMouseMove = function(state, e) {
-  const { lng, lat } = snap(state, e);
+  if (!state.selectedPointID) return;
+  console.log(e);
+  SimpleSelect.onMouseMove.call(this, state, e);
 
-  state.polygon.updateCoordinate(`0.${state.currentVertexPosition}`, lng, lat);
-  state.snappedLng = lng;
-  state.snappedLat = lat;
-
-  if (
-    state.lastVertex &&
-    state.lastVertex[0] === lng &&
-    state.lastVertex[1] === lat
-  ) {
-    this.updateUIClasses({ mouse: cursors.POINTER });
-
-    // cursor options:
-    // ADD: "add"
-    // DRAG: "drag"
-    // MOVE: "move"
-    // NONE: "none"
-    // POINTER: "pointer"
-  } else {
-    this.updateUIClasses({ mouse: cursors.ADD });
-  }
+  const point = state.points[state.selectedPointID];
+  console.log({ point });
+  state.features.features.forEach(feature => {
+    const assumedFeatureIdx = coordAll(feature).findIndex(c => {
+      c[0] === point.coordinates[0] && c[1] === point.coordinates[1];
+    });
+    console.log({ feature, assumedFeatureIdx });
+    if (assumedFeatureIdx) {
+      feature.geometry.coordinates[assumedFeatureIdx] = [
+        e.lngLat.lng,
+        e.lngLat.lat
+      ];
+      state.draw.add(feature);
+    }
+  });
 };
 
 // This is 'extending' DrawPolygon.toDisplayFeatures
 pinMode.toDisplayFeatures = function(state, geojson, display) {
-  if (shouldHideGuide(state, geojson)) return;
-
+  // console.log({ geojson });
   // This relies on the the state of SnapPolygonMode being similar to DrawPolygon
-  DrawPolygon.toDisplayFeatures(state, geojson, display);
+  SimpleSelect.toDisplayFeatures.call(this, state, geojson, display);
+  // display(geojson);
 };
 
 // This is 'extending' DrawPolygon.onStop
 pinMode.onStop = function(state) {
-  this.deleteFeature(IDS.VERTICAL_GUIDE, { silent: true });
-  this.deleteFeature(IDS.HORIZONTAL_GUIDE, { silent: true });
-
   // remove moveemd callback
   this.map.off("moveend", state.moveendCallback);
 
+  this.changeMode("simple_select");
+
   // This relies on the the state of SnapPolygonMode being similar to DrawPolygon
-  DrawPolygon.onStop.call(this, state);
+  // DrawPolygon.onStop.call(this, state);
 };
 
 export default pinMode;
