@@ -72,6 +72,19 @@ export const addPointTovertices = (
   }
 };
 
+const getCurrentViewportBBox = () => {
+  const canvas = map.getCanvas(),
+    w = canvas.width,
+    h = canvas.height,
+    cUL = map.unproject([0, 0]).toArray(),
+    cUR = map.unproject([w, 0]).toArray(),
+    cLR = map.unproject([w, h]).toArray(),
+    cLL = map.unproject([0, h]).toArray();
+
+  return [cLL, cUR];
+  // return bboxPolygon([cLL, cUR].flat());
+};
+
 /**
  * Loops over all features to get vertical and horizontal vertices to snap to
  *
@@ -84,17 +97,7 @@ export const createSnapList = (map, draw, currentFeature) => {
   const features = draw.getAll().features;
   const snapList = [];
 
-  const bboxAsPolygon = (() => {
-    const canvas = map.getCanvas(),
-      w = canvas.width,
-      h = canvas.height,
-      cUL = map.unproject([0, 0]).toArray(),
-      cUR = map.unproject([w, 0]).toArray(),
-      cLR = map.unproject([w, h]).toArray(),
-      cLL = map.unproject([0, h]).toArray();
-
-    return bboxPolygon([cLL, cUR].flat());
-  })();
+  const bboxAsPolygon = (() => {})();
 
   const vertices = [];
 

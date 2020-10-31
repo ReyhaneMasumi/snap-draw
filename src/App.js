@@ -33,6 +33,9 @@ import {
 import SnapPolygonMode from "./snapModes/SnapPolygonMode";
 import SnapPointMode from "./snapModes/SnapPointMode";
 import SnapLineMode from "./snapModes/SnapLineMode";
+
+import pinMode from "./pinMode/pinMode";
+
 import RotateMode from "mapbox-gl-draw-rotate-mode";
 import FreehandMode from "mapbox-gl-draw-freehand-mode";
 import DrawRectangleRestrict, {
@@ -89,6 +92,7 @@ export default function App() {
         snap_point: SnapPointMode,
         snap_polygon: SnapPolygonMode,
         snap_line: SnapLineMode,
+        pin_vertices: pinMode,
         RotateMode: RotateMode,
         DrawRectangle: DrawRectangle,
         DrawRectangleRestrict: DrawRectangleRestrict //draw rectangle with restrict area
@@ -617,6 +621,13 @@ export default function App() {
         }}
       >
         redo
+      </button>
+      <button
+        onClick={() => {
+          draw?.changeMode("pin_vertices", { draw: draw });
+        }}
+      >
+        pin_vertices
       </button>
       <div id="map" ref={mapRef} />
     </div>
