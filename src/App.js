@@ -410,7 +410,7 @@ export default function App() {
     // console.log({ ptsWithin });
     // if (ptsWithin.features.length > 0) {
     //   // draw.changeMode("simple_select", {
-    //   //   featureIds: [ptsWithin.features[0].id, ptsWithin.features[1].id] //there is no id vertices ---> How is if there is no need to id??
+    //   //   featureIds: [ptsWithin.features[0].id, ptsWithin.features[1].id] //there is no id vertices
     //   // });
     //   //   let dissolved = dissolve(collection);
     //   //   console.log({ dissolved });
@@ -433,44 +433,60 @@ export default function App() {
   };
 
   const undo = () => {
-    let redoTemp = new Array();
     if (!undoList[undoList.length - 1]) {
       console.log("There is no action to UNDO!");
       return;
     }
     let lastOne = undoList.pop();
-    lastOne.forEach((el, i) => {
-      redoTemp.push(draw.get([el.id]));
+    lastOne.next.forEach((el, i) => {
       draw.add(el);
     });
-    console.log({ redoTemp });
-    redoList.push(redoTemp);
+    redoList.push({
+      current: lastOne.next,
+      next: lastOne.current
+    });
   };
 
   const redo = () => {
-    let undoTemp = new Array();
     if (!redoList[redoList.length - 1]) {
       console.log("There is no action to REDO!");
       return;
     }
     let latest = redoList.pop();
     console.log({ latest });
-    latest.forEach((el, i) => {
-      undoTemp.push(draw.get([el.id]));
+    latest.next.forEach((el, i) => {
       draw.add(el);
     });
-    undoList.push(undoTemp);
+    undoList.push({
+      current: latest.next,
+      next: latest.current
+    });
   };
 
   useEffect(() => {
-    map.on("draw.modechange", () => {
-      let before = draw.getSelected().features;
-      map.on("draw.update", e => {
-        if (e.features !== before) {
-          if (before !== undoList[undoList.length - 1]) undoList.push(before);
-        }
-        console.log({ undoList });
-      });
+    if (!draw) return;
+    console.info("----");
+    map.on("draw.modechange", e => {
+      if (e.mode === "direct_select") {
+        let before = draw.getSelected().features;
+        console.log({ before });
+        map.once("draw.update", e => {
+          if (e.features !== before) {
+            if (before !== undoList[undoList.length - 1]) {
+              let currents = [];
+              before.forEach(beforeFeature => {
+                currents.push(draw.get(beforeFeature.id));
+              });
+
+              undoList.push({
+                current: currents,
+                next: before
+              });
+            }
+          }
+          console.log({ undoList });
+        });
+      }
     });
   }, [draw]);
 
