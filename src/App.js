@@ -393,39 +393,13 @@ export default function App() {
   };
 
   const pinning = () => {
-    let main = draw.getSelected().features[0];
-    console.log({ main });
-    // let inter = intersect(main[0], main[1]);
-    // console.log({ inter });
-    // unionPolygons();
+    if (draw.getSelectedPoints().features[0] === undefined) {
+      console.log('First select a vertex!');
+      return;
+    }
     let verticesOld = draw.getSelectedPoints().features[0].geometry;
     console.log(draw.getSelectedPoints().features[0]);
     console.log({ verticesOld });
-    // let searchWithin = draw
-    //   .getAll()
-    //   .features.filter(
-    //     i =>
-    //       (i.geometry.type === "Polygon") | (i.geometry.type === "MultiPolygon")
-    //   );
-    // console.log({ searchWithin });
-    // let collection = featureCollection([...searchWithin], {
-    //   id: "new"
-    // });
-    // console.log({ collection });
-    // let ptsWithin = pointsWithinPolygon(vertices, collection);
-    // console.log({ ptsWithin });
-    // if (ptsWithin.features.length > 0) {
-    //   // let dissolved = dissolve(collection);
-    //   // console.log({ dissolved });
-    //   // draw.add(dissolved);
-    //   // let combined = combine(collection);
-    //   let combined = multiPolygon([
-    //     searchWithin[0].geometry.coordinates,
-    //     searchWithin[1].geometry.coordinates
-    //   ]);
-    //   draw.delete([searchWithin[0].id, searchWithin[1].id]);
-    //   console.log({ combined });
-    //   draw.add(combined);
     map.on('draw.update', (e) => {
       let verticesNew = draw.getSelectedPoints().features[0].geometry;
       console.log({ verticesNew });
@@ -449,13 +423,6 @@ export default function App() {
                 el.geometry.coordinates[i2][i3],
               ]);
               console.log({ thisLine });
-              // let isPointOnLine = booleanPointOnLine(
-              //   point(verticesOld.coordinates),
-              //   thisLine,
-              //   { ignoreEndVertices: true }
-              // );
-
-              // draw.add(buffer(thisLine, 5, { units: 'meters' }));
 
               let isPointOnLine = booleanPointInPolygon(
                 point(verticesOld.coordinates),
@@ -475,12 +442,7 @@ export default function App() {
           }
         });
       });
-      // let flattenFeature = flatten(e.features[0]);
-      // console.log(flattenFeature);
-      // draw.delete([combined.id]);
-      // draw.add(flattenFeature);
     });
-    // }
   };
 
   const undo = () => {
