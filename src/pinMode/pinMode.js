@@ -45,60 +45,56 @@ pinMode.onSetup = function({ draw, snapPx = 10, isSnappy = false }) {
   const getFeaturesVertices = () => {
     const BBoxPolygon = bboxPolygon(getCurrentViewportBBox(this.map).flat());
     const vertices = [];
-
+    
     const features = draw.getAll();
     features.features = features.features.filter(feature => {
-      return coordAll(feature).some((coord, idx) => {
-        // use opportunity to add vertex to vertices
-        vertices.push({
-          vertex: coord,
-          features: [
-            {
-              id: feature.properties.id,
-              idx
-            }
-          ]
-        });
-
-        return booleanPointInPolygon(coord, BBoxPolygon);
-      });
+      return coordAll(feature).some((coord, idx) => booleanPointInPolygon(coord, BBoxPolygon));
     });
 
-    // const verticesToFeatures = vertices.reduce();
 
-    const points = coordAll(features)
-      .filter(v => {
-        if (vertexUniqTemp.includes(v[0]) || vertexUniqTemp.includes(v[1])) {
-          return false;
-        } else {
-          vertexUniqTemp = vertexUniqTemp.concat(v);
-          return true;
+    const _this = this;
+    features.features.forEach(feature => {
+      console.log("getFeaturesVertices -> feature", feature);
+      const featureVertices = coordAll(feature);
+      featureVertices.forEach(((featureVertex, vIdx) => {
+        const alreadyDrawnIdx = vertices.findIndex(v => {          
+          const c = v.vertex.coordinates;
+          return c[0] === featureVertex[0] && c[1] === featureVertex[1] 
+        });
+        console.log("getFeaturesVertices -> alreadyDrawnIdx", alreadyDrawnIdx)
+
+        if (alreadyDrawnIdx !== -1) {
+          vertices[alreadyDrawnIdx].vertex.properties.featureIDs.push([feature.id, vIdx]);
         }
-      })
-      .map(
-        ((vertex, idx) => {
-          // this = _this;
-          return this.newFeature({
-            type: geojsonTypes.FEATURE,
-            properties: { idx },
-            id: idx.toString(),
-            geometry: {
-              type: geojsonTypes.POINT,
-              coordinates: vertex
-            }
+        else {
+          vertices.push({
+            vertex: this.newFeature({
+              type: geojsonTypes.FEATURE,
+              properties: { 
+                featureIDs: [
+                  [feature.id, vIdx]
+                ]
+               },
+              id: feature.id + vIdx,
+              geometry: {
+                type: geojsonTypes.POINT,
+                coordinates: featureVertex
+              }
+            })
           });
-        }).bind(this)
-      );
+        }
+      }).bind(_this))
+    });
 
-    points.forEach(
-      (point => {
-        return this.addFeature(point);
+    vertices.forEach(
+      (vertex => {
+        return this.addFeature(vertex.vertex);
       }).bind(this)
     );
 
     state.features = features;
     state.vertices = vertices;
-    state.points = points;
+    state.points = vertices;
   };
 
   getFeaturesVertices();
@@ -113,10 +109,6 @@ pinMode.onSetup = function({ draw, snapPx = 10, isSnappy = false }) {
 
   return state;
 };
-
-// pinMode.onDrag = function(state, e) {
-//   console.log(e);
-// };
 
 // pinMode.onClick = function(state, e) {
 //   if (!e.featureTarget) {
@@ -133,6 +125,7 @@ pinMode.onSetup = function({ draw, snapPx = 10, isSnappy = false }) {
 
 pinMode.onClick = function(state, e) {
   SimpleSelect.onClick.call(this, state, e);
+  console.log(this.getSelected());
 };
 
 pinMode.onMouseDown = function(state, e) {
@@ -151,9 +144,23 @@ pinMode.onDrag = function(state, e) {
   if (!state.selectedPointID) return;
   console.log(e);
 
-  const pointIdx = state.points[state.selectedPointID].properties.user_idx;
+  // const pointIdx = state.points[state.selectedPointID].properties.user_idx;
   // const point = [...this.getSelected()[0].coordinates];
   SimpleSelect.onDrag.call(this, state, e);
+  const movingPoint = this.getSelected()[0];
+  console.log("pinMode.onDrag -> movingPoint", movingPoint)
+  movingPoint.properties.featureIDs.forEach(([id, idx]) => {
+    const f = state.draw.get(id);
+    console.log("pinMode.onDrag -> f", f)
+    f.geometry.coordinates[0][idx] = [
+      e.lngLat.lng,
+      e.lngLat.lat
+    ];
+    state.draw.add(f)
+  });
+
+  return;
+
 
   console.log({ point, lngLat: e.lngLat });
   state.features.features.forEach(feature => {
