@@ -44,36 +44,56 @@ pinMode.onSetup = function({ draw, snapPx = 10, isSnappy = false }) {
 
   const getFeaturesVertices = () => {
     const BBoxPolygon = bboxPolygon(getCurrentViewportBBox(this.map).flat());
+    const vertices = [];
+
     const features = draw.getAll();
     features.features = features.features.filter(feature => {
-      return coordAll(feature).some(coord =>
-        booleanPointInPolygon(coord, BBoxPolygon)
-      );
-    });
-    const vertices = coordAll(features);
-
-    const _this = this;
-
-    const points = vertices.map(
-      ((vertex, idx) => {
-        // this = _this;
-        return this.newFeature({
-          type: geojsonTypes.FEATURE,
-          properties: { idx },
-          id: idx.toString(),
-          geometry: {
-            type: geojsonTypes.POINT,
-            coordinates: vertex
-          }
+      return coordAll(feature).some((coord, idx) => {
+        // use opportunity to add vertex to vertices
+        vertices.push({
+          vertex: coord,
+          features: [
+            {
+              id: feature.properties.id,
+              idx
+            }
+          ]
         });
-      }).bind(_this)
-    );
+
+        return booleanPointInPolygon(coord, BBoxPolygon);
+      });
+    });
+
+    // const verticesToFeatures = vertices.reduce();
+
+    const points = coordAll(features)
+      .filter(v => {
+        if (vertexUniqTemp.includes(v[0]) || vertexUniqTemp.includes(v[1])) {
+          return false;
+        } else {
+          vertexUniqTemp = vertexUniqTemp.concat(v);
+          return true;
+        }
+      })
+      .map(
+        ((vertex, idx) => {
+          // this = _this;
+          return this.newFeature({
+            type: geojsonTypes.FEATURE,
+            properties: { idx },
+            id: idx.toString(),
+            geometry: {
+              type: geojsonTypes.POINT,
+              coordinates: vertex
+            }
+          });
+        }).bind(this)
+      );
 
     points.forEach(
       (point => {
-        // this = _this;
         return this.addFeature(point);
-      }).bind(_this)
+      }).bind(this)
     );
 
     state.features = features;
@@ -86,10 +106,10 @@ pinMode.onSetup = function({ draw, snapPx = 10, isSnappy = false }) {
   // for removing listener later on close
   state["moveendCallback"] = getFeaturesVertices;
 
-  this.map.on("moveend", getFeaturesVertices);
+  // this.map.on("moveend", getFeaturesVertices);
   // TODO: this (custom) event should fire when new draw features added to map
   // handling asyncly added features
-  this.map.on("featureChanged", getFeaturesVertices);
+  // this.map.on("featureChanged", getFeaturesVertices);
 
   return state;
 };
@@ -111,11 +131,15 @@ pinMode.onSetup = function({ draw, snapPx = 10, isSnappy = false }) {
 //   SimpleSelect.clickOnFeature.call(this, state, e);
 // };
 
+pinMode.onClick = function(state, e) {
+  SimpleSelect.onClick.call(this, state, e);
+};
+
 pinMode.onMouseDown = function(state, e) {
   if (e.featureTarget) {
     state.selectedPointID = e.featureTarget.properties.id;
   }
-  SimpleSelect.onMouseUp.call(this, state, e);
+  SimpleSelect.onMouseDown.call(this, state, e);
 };
 
 pinMode.onMouseUp = function(state, e) {
@@ -123,26 +147,38 @@ pinMode.onMouseUp = function(state, e) {
   SimpleSelect.onMouseUp.call(this, state, e);
 };
 
-pinMode.onMouseMove = function(state, e) {
+pinMode.onDrag = function(state, e) {
   if (!state.selectedPointID) return;
   console.log(e);
-  SimpleSelect.onMouseMove.call(this, state, e);
 
-  const point = state.points[state.selectedPointID];
-  console.log({ point });
+  const pointIdx = state.points[state.selectedPointID].properties.user_idx;
+  // const point = [...this.getSelected()[0].coordinates];
+  SimpleSelect.onDrag.call(this, state, e);
+
+  console.log({ point, lngLat: e.lngLat });
   state.features.features.forEach(feature => {
     const assumedFeatureIdx = coordAll(feature).findIndex(c => {
-      c[0] === point.coordinates[0] && c[1] === point.coordinates[1];
+      return c[0] === point[0] && c[1] === point[1];
     });
-    console.log({ feature, assumedFeatureIdx });
-    if (assumedFeatureIdx) {
-      feature.geometry.coordinates[assumedFeatureIdx] = [
+
+    console.log({ feature, assumedFeatureIdx, coords: coordAll(feature) });
+    const theOne = feature.coordinates[0][pointIdx];
+    // if (theOne[0] === && theOne[1] === )
+    if (assumedFeatureIdx !== -1) {
+      feature.geometry.coordinates[0][assumedFeatureIdx] = [
         e.lngLat.lng,
         e.lngLat.lat
       ];
+      console.log({ feature });
       state.draw.add(feature);
     }
   });
+
+  // state.points[state.selectedPointID].updateCoordinate(
+  //   "",
+  //   e.lngLat.lng,
+  //   e.lngLat.lat
+  // );
 };
 
 // This is 'extending' DrawPolygon.toDisplayFeatures
@@ -158,7 +194,7 @@ pinMode.onStop = function(state) {
   // remove moveemd callback
   this.map.off("moveend", state.moveendCallback);
 
-  this.changeMode("simple_select");
+  // this.changeMode("simple_select");
 
   // This relies on the the state of SnapPolygonMode being similar to DrawPolygon
   // DrawPolygon.onStop.call(this, state);
