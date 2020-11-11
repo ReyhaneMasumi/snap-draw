@@ -37,6 +37,8 @@ import {
 import SnapPolygonMode from './snapModes/SnapPolygonMode';
 import SnapPointMode from './snapModes/SnapPointMode';
 import SnapLineMode from './snapModes/SnapLineMode';
+import CutPolygunMode from './cutPolygon/cutPolygonMode';
+import SplitPolygonMode from './splitPolygonMode/splitPolygonMode';
 import RotateMode from 'mapbox-gl-draw-rotate-mode';
 import FreehandMode from 'mapbox-gl-draw-freehand-mode';
 import DrawRectangleRestrict, {
@@ -93,6 +95,8 @@ export default function App() {
         snap_point: SnapPointMode,
         snap_polygon: SnapPolygonMode,
         snap_line: SnapLineMode,
+        cutPolygunMode: CutPolygunMode,
+        splitPolygonMode: SplitPolygonMode,
         RotateMode: RotateMode,
         DrawRectangle: DrawRectangle,
         DrawRectangleRestrict: DrawRectangleRestrict, //draw rectangle with restrict area
@@ -528,10 +532,10 @@ export default function App() {
       </button>
       <button
         onClick={() => {
-          cutPolygun();
+          draw?.changeMode('cutPolygunMode');
         }}
       >
-        cut
+        cut(mode)
       </button>
       <button
         onClick={() => {
@@ -542,10 +546,10 @@ export default function App() {
       </button>
       <button
         onClick={() => {
-          splitPolygons();
+          draw?.changeMode('splitPolygonMode');
         }}
       >
-        split
+        split(mode)
       </button>
       <button
         onClick={() => {

@@ -8,6 +8,7 @@
     "@turf/turf": "5.1.6",
     "events": "^3.2.0",
     "mapbox-gl": "1.12.0",
+    "mapbox-gl-draw-cut-polygon-mode": "^0.1.0",
     "mapbox-gl-draw-freehand-mode": "^2.0.0",
     "mapbox-gl-draw-rectangle-restrict-area": "^3.1.4",
     "mapbox-gl-draw-rotate-mode": "1.0.4",
